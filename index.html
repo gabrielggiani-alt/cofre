@@ -147,6 +147,9 @@
     <input id="aTeto" inputmode="decimal">
     <label for="aFixa">Entrada fixa por mês</label>
     <input id="aFixa" inputmode="decimal">
+    <label for="aFech">Dia em que a fatura fecha</label>
+    <input id="aFech" inputmode="numeric">
+    <p class="sub" style="margin:6px 0 0">O teto passa a contar desse dia até o mesmo dia do mês seguinte.</p>
     <button class="principal" id="salvarAjustes" style="margin-top:18px">Salvar</button>
     <button class="fantasma" id="voltarAjustes">Voltar</button>
   </div>
@@ -287,6 +290,23 @@ function numero(txt){
 }
 function chaveMes(d){ return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0"); }
 function rotuloMes(k){ var p=k.split("-"); return NOMES[+p[1]-1]+" de "+p[0]; }
+
+// O ciclo do cartão começa no dia do fechamento: compra feita no próprio dia 5
+// já entra na fatura seguinte. Compra antes do dia 5 pertence ao ciclo anterior.
+function fechamento(){ return (conf && conf.fechamento) ? conf.fechamento : 5; }
+function cicloDe(dataISO){
+  var p = dataISO.split("-");
+  var ano = +p[0], mes = +p[1], dia = +p[2];
+  if(dia < fechamento()){ mes -= 1; if(mes === 0){ mes = 12; ano -= 1; } }
+  return ano + "-" + String(mes).padStart(2,"0");
+}
+function cicloAtual(){ return cicloDe(hoje.toISOString().slice(0,10)); }
+function rotuloCiclo(k){
+  var p = k.split("-"), f = fechamento();
+  var ini = NOMES[+p[1]-1].slice(0,3);
+  var fim = NOMES[+p[1] % 12].slice(0,3);
+  return "fecha " + f + " " + fim;
+}
 function somaMes(k, n){
   var p = k.split("-"), d = new Date(+p[0], +p[1]-1+n, 1);
   return chaveMes(d);
@@ -418,11 +438,12 @@ function render(){
     ? "Sai do que está guardado quando você pagar." : "Fatura zerada. Nada a pagar.";
   $("pagarFatura").style.display = fatura > 0 ? "block" : "none";
 
+  var ciclo = cicloAtual();
   var gasto = L.filter(function(l){
-    return l.mes===mesAtual && l.tipo==="saida";
+    return !l.previsto && l.tipo==="saida" && cicloDe(l.data)===ciclo;
   }).reduce(function(s,l){return s+l.valor;},0);
   var estouro = gasto - conf.teto;
-  $("rotuloTeto").textContent = "Teto de "+NOMES[hoje.getMonth()];
+  $("rotuloTeto").textContent = "Teto · "+rotuloCiclo(ciclo);
   $("numTeto").innerHTML = brl(gasto)+"<span> / "+brl(conf.teto)+"</span>";
   $("numTeto").style.color = estouro>0 ? "var(--coral)" : "var(--tinta)";
   var fill = $("fill");
@@ -433,8 +454,8 @@ function render(){
     : "Ainda cabem "+brl(-estouro)+" até o limite.";
   $("aviso").style.color = estouro>0 ? "var(--coral)" : "var(--suave)";
 
-  $("rotuloLanc").textContent = "Lançamentos de "+NOMES[hoje.getMonth()];
-  var doMes = L.filter(function(l){return l.mes===mesAtual && !l.previsto;})
+  $("rotuloLanc").textContent = "Lançamentos · "+rotuloCiclo(ciclo);
+  var doMes = L.filter(function(l){return !l.previsto && cicloDe(l.data)===ciclo;})
     .sort(function(a,b){return a.id < b.id ? 1 : -1;});
   var li = doMes.length ? "" : '<p class="vazio">Nada lançado ainda este mês.</p>';
   doMes.forEach(function(l){
@@ -515,13 +536,16 @@ function restaurar(){
 function abrirAjustes(){
   $("aTeto").value = conf.teto;
   $("aFixa").value = conf.fixa;
+  $("aFech").value = fechamento();
   $("aExport").value = codificar({config:conf, lancamentos:L});
   mostrar("telaAjustes");
 }
 function salvarAjustes(){
-  var t = numero($("aTeto").value), f = numero($("aFixa").value);
+  var t = numero($("aTeto").value), f = numero($("aFixa").value),
+      dia = parseInt($("aFech").value, 10);
   if(t !== null && t > 0) conf.teto = t;
   if(f !== null && f >= 0) conf.fixa = f;
+  if(dia >= 1 && dia <= 28) conf.fechamento = dia;
   gravar(K_CONF, conf);
   mostrar("telaApp"); render();
 }
