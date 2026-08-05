@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Cofre</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#EDF1F2">
+<meta name="description" content="Controle de teto de gastos, fatura e projeção mensal.">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Cofre">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --papel:#EDF1F2; --tinta:#152A38; --suave:#5C7383;
+    --linha:#CBD6DA; --verde:#0A5F45; --coral:#C9432B; --cartao:#fff;
+    --sans:'IBM Plex Sans',system-ui,sans-serif;
+    --mono:'IBM Plex Mono',monospace;
+    --display:'Bricolage Grotesque',var(--sans);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0;background:var(--papel)}
+  body{font-family:var(--sans);color:var(--tinta);
+    padding:calc(26px + env(safe-area-inset-top)) 16px calc(40px + env(safe-area-inset-bottom))}
+  .col{max-width:460px;margin:0 auto}
+
+  .olho{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--suave);font-weight:600;margin:0}
+  h1{font-family:var(--display);font-size:44px;font-weight:700;margin:6px 0 0;
+     letter-spacing:-.02em;line-height:1;color:var(--verde)}
+  h2{font-family:var(--display);font-size:26px;font-weight:700;margin:0 0 6px;letter-spacing:-.01em}
+  .legenda{font-size:12.5px;color:var(--suave);margin:8px 0 0}
+  header{margin-bottom:24px;display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+
+  .cartao{background:var(--cartao);border:1px solid var(--linha);border-radius:14px;padding:18px;margin-bottom:14px}
+  .cartao.fatura{border-color:var(--coral);border-width:1.5px}
+
+  .topo{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap}
+  .num{font-family:var(--mono);font-size:17px;font-weight:600;margin:0}
+  .num span{color:var(--suave);font-weight:400;font-size:13px}
+  .grande{font-family:var(--mono);font-size:27px;font-weight:600;margin:10px 0 0;color:var(--coral)}
+
+  .regua{position:relative;height:12px;background:var(--papel);border:1px solid var(--linha);border-radius:6px;overflow:hidden;margin-top:16px}
+  .fill{position:absolute;left:0;top:0;bottom:0;border-radius:6px;transition:width .35s ease}
+  .marca{position:absolute;top:3px;bottom:3px;width:1px;background:var(--linha)}
+  .limite{position:absolute;right:0;top:-2px;bottom:-2px;width:2px;background:var(--tinta)}
+  .aviso{font-size:13px;font-weight:500;margin:12px 0 0}
+
+  .seg{display:grid;grid-template-columns:1fr 1fr;gap:6px;background:var(--papel);
+       padding:4px;border-radius:10px;margin-bottom:8px}
+  .seg button{font-size:13.5px;font-weight:600;padding:10px 4px;background:transparent;
+       border:none;border-radius:7px;color:var(--suave);transition:all .15s}
+  .seg button.on{background:var(--cartao);color:var(--tinta);box-shadow:0 1px 3px rgba(21,42,56,.12)}
+  .seg button:disabled{opacity:.35;cursor:not-allowed}
+
+  .campoLinha{display:flex;align-items:center;gap:8px;border-bottom:2px solid var(--linha);margin:16px 0 14px;padding-bottom:6px}
+  .cifrao{font-family:var(--mono);font-size:18px;color:var(--suave)}
+  .campoLinha input{flex:1;border:none;background:transparent;font-family:var(--mono);
+       font-size:26px;font-weight:600;color:var(--tinta);width:100%;padding:0}
+  .campoLinha input:focus{outline:none}
+
+  .principal{width:100%;font-size:14.5px;font-weight:600;padding:13px;border-radius:10px;
+       border:none;background:var(--tinta);color:var(--papel)}
+  .principal:active{transform:scale(.98)}
+  .paga{width:100%;font-size:13.5px;font-weight:600;padding:12px;border-radius:10px;
+       border:1.5px solid var(--coral);background:transparent;color:var(--coral);margin-top:14px}
+  .fantasma{width:100%;font-size:13px;font-weight:600;padding:11px;border-radius:10px;
+       border:1px solid var(--linha);background:transparent;color:var(--suave);margin-top:8px}
+  .engrenagem{background:none;border:1px solid var(--linha);border-radius:9px;
+       width:38px;height:38px;font-size:16px;color:var(--suave);flex-shrink:0}
+
+  .sub{font-size:12.5px;color:var(--suave);margin:6px 0 12px}
+  .item{display:flex;justify-content:space-between;align-items:center;padding:11px 0;border-top:1px solid var(--papel)}
+  .item:first-child{border-top:none}
+  .item .nota{font-size:13.5px;font-weight:500;margin:0}
+  .item .data{font-family:var(--mono);font-size:11px;color:var(--suave);margin:2px 0 0}
+  .item .val{font-family:var(--mono);font-size:13.5px;font-weight:600}
+  .dir{display:flex;align-items:center;gap:10px}
+  .mini{font-size:11px;font-weight:600;color:var(--verde);background:none;border:1px solid var(--verde);
+       border-radius:6px;padding:5px 9px}
+  .mini.x{color:var(--suave);border:none;font-size:17px;padding:2px 4px}
+
+  .proj{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-top:1px solid var(--papel)}
+  .proj .m{font-size:13.5px;text-transform:capitalize}
+  .proj .v{font-family:var(--mono);font-size:14px;font-weight:600;color:var(--verde)}
+
+  .toggle{display:flex;justify-content:space-between;align-items:center;width:100%;background:none;border:none;padding:0}
+  .seta{font-family:var(--mono);font-size:20px;color:var(--suave);line-height:1}
+  .vazio{font-size:13px;color:var(--suave);margin:10px 0 0}
+  .rodape{font-size:11.5px;color:var(--suave);text-align:center;margin:18px 0 0;line-height:1.6}
+
+  label{display:block;font-size:12px;font-weight:600;color:var(--suave);margin:14px 0 5px}
+  .form input, .form textarea{width:100%;border:1px solid var(--linha);border-radius:9px;
+       padding:11px;font-family:var(--mono);font-size:15px;color:var(--tinta);background:var(--cartao)}
+  .form textarea{font-size:11px;height:110px;resize:vertical;line-height:1.5}
+  .erro{font-size:12.5px;color:var(--coral);margin:10px 0 0;font-weight:500}
+  .oculto{display:none}
+  button{cursor:pointer;font-family:var(--sans)}
+  button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--tinta);outline-offset:2px}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<!-- ===== CONFIGURAÇÃO INICIAL ===== -->
+<div class="col" id="telaSetup">
+  <h2>Cofre</h2>
+  <p class="sub">Seus números ficam só neste aparelho. Nada é enviado para lugar nenhum.</p>
+
+  <div class="seg" style="margin-top:18px">
+    <button id="abaNovo" class="on">Começar do zero</button>
+    <button id="abaCodigo">Tenho um código</button>
+  </div>
+
+  <div class="cartao form" id="painelNovo">
+    <label for="cSaldo">Quanto você tem guardado hoje</label>
+    <input id="cSaldo" inputmode="decimal" placeholder="0,00">
+
+    <label for="cTeto">Teto de gasto por mês</label>
+    <input id="cTeto" inputmode="decimal" placeholder="0,00">
+
+    <label for="cFixa">Entrada fixa por mês</label>
+    <input id="cFixa" inputmode="decimal" placeholder="0,00">
+
+    <label for="cRenda">Renda variável média por mês</label>
+    <input id="cRenda" inputmode="decimal" placeholder="0,00">
+    <p class="sub" style="margin:6px 0 0">Vale para os próximos 12 meses. Dá para ajustar cada mês depois.</p>
+
+    <button class="principal" id="salvarNovo" style="margin-top:18px">Criar meu cofre</button>
+    <p class="erro oculto" id="erroNovo"></p>
+  </div>
+
+  <div class="cartao form oculto" id="painelCodigo">
+    <label for="cImport">Cole seu código de restauração</label>
+    <textarea id="cImport" placeholder="COFRE1..."></textarea>
+    <button class="principal" id="salvarCodigo" style="margin-top:14px">Restaurar</button>
+    <p class="erro oculto" id="erroCodigo"></p>
+  </div>
+</div>
+
+<!-- ===== AJUSTES ===== -->
+<div class="col oculto" id="telaAjustes">
+  <h2>Ajustes</h2>
+  <div class="cartao form">
+    <label for="aTeto">Teto de gasto por mês</label>
+    <input id="aTeto" inputmode="decimal">
+    <label for="aFixa">Entrada fixa por mês</label>
+    <input id="aFixa" inputmode="decimal">
+    <button class="principal" id="salvarAjustes" style="margin-top:18px">Salvar</button>
+    <button class="fantasma" id="voltarAjustes">Voltar</button>
+  </div>
+
+  <div class="cartao form">
+    <p class="olho">Cópia de segurança</p>
+    <p class="sub">Guarde este código. Ele restaura tudo em outro aparelho.</p>
+    <textarea id="aExport" readonly></textarea>
+    <button class="fantasma" id="copiarCodigo" style="margin-top:10px">Copiar código</button>
+  </div>
+
+  <div class="cartao form">
+    <p class="olho">Apagar tudo</p>
+    <p class="sub">Remove todos os lançamentos e configurações deste aparelho.</p>
+    <button class="paga" id="apagarTudo" style="margin-top:4px">Apagar meu cofre</button>
+  </div>
+</div>
+
+<!-- ===== APP ===== -->
+<div class="col oculto" id="telaApp">
+
+  <header>
+    <div>
+      <p class="olho">Guardado</p>
+      <h1 id="saldo">R$ 0,00</h1>
+      <p class="legenda" id="legenda"></p>
+    </div>
+    <button class="engrenagem" id="irAjustes" aria-label="Ajustes">&#9881;</button>
+  </header>
+
+  <section class="cartao">
+    <p class="olho">Lançar</p>
+    <div class="seg" style="margin-top:12px">
+      <button id="tSaida" class="on">Saída</button>
+      <button id="tEntrada">Entrada</button>
+    </div>
+    <div class="seg">
+      <button id="mPix" class="on">Pix</button>
+      <button id="mCredito">Crédito</button>
+    </div>
+    <div class="campoLinha">
+      <span class="cifrao">R$</span>
+      <input id="valor" inputmode="decimal" placeholder="0,00">
+    </div>
+    <button class="principal" id="lancar">Lançar</button>
+    <p class="sub" id="dicaLanc" style="margin:10px 0 0"></p>
+  </section>
+
+  <section class="cartao">
+    <p class="olho">A receber</p>
+    <p class="sub">Toque em recebi quando o dinheiro cair.</p>
+    <div id="previstos"></div>
+    <p class="sub" id="proximoMes" style="margin:14px 0 0;padding-top:12px;border-top:1px solid var(--papel)"></p>
+  </section>
+
+  <section class="cartao fatura">
+    <div class="topo">
+      <p class="olho">Fatura aberta</p>
+      <p class="num" id="qtdCompras"></p>
+    </div>
+    <p class="grande" id="fatura">R$ 0,00</p>
+    <p class="sub" id="dicaFatura" style="margin:8px 0 0"></p>
+    <button class="paga" id="pagarFatura">Paguei a fatura</button>
+  </section>
+
+  <section class="cartao">
+    <div class="topo">
+      <p class="olho" id="rotuloTeto">Teto do mês</p>
+      <p class="num" id="numTeto"></p>
+    </div>
+    <div class="regua">
+      <div class="fill" id="fill"></div>
+      <div class="marca" style="left:16.6%"></div>
+      <div class="marca" style="left:33.3%"></div>
+      <div class="marca" style="left:50%"></div>
+      <div class="marca" style="left:66.6%"></div>
+      <div class="marca" style="left:83.3%"></div>
+      <div class="limite"></div>
+    </div>
+    <p class="aviso" id="aviso"></p>
+  </section>
+
+  <section class="cartao">
+    <button class="toggle" id="toggle">
+      <span class="olho" id="rotuloLanc">Lançamentos</span>
+      <span class="seta" id="seta">+</span>
+    </button>
+    <div id="lista" class="oculto" style="margin-top:6px"></div>
+  </section>
+
+  <section class="cartao">
+    <p class="olho">Projeção</p>
+    <p class="sub">Saldo de cada mês depois de receber tudo, pagar a fatura e gastar o teto.</p>
+    <div id="projecao"></div>
+  </section>
+
+  <p class="rodape">Crédito só sai do saldo quando a fatura é paga.<br>Pix sai na hora. Os dois contam no teto.</p>
+</div>
+
+<script>
+"use strict";
+
+var K_CONF = "cofre:config";
+var K_LANC = "cofre:lancamentos";
+var NOMES = ["janeiro","fevereiro","março","abril","maio","junho",
+             "julho","agosto","setembro","outubro","novembro","dezembro"];
+
+/* ---------- armazenamento ---------- */
+var mem = {};
+function ler(k){
+  try{ var s = localStorage.getItem(k); return s ? JSON.parse(s) : null; }
+  catch(e){ return mem[k] || null; }
+}
+function gravar(k,v){
+  mem[k] = v;
+  try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){}
+}
+function limpar(){
+  mem = {};
+  try{ localStorage.removeItem(K_CONF); localStorage.removeItem(K_LANC); }catch(e){}
+}
+
+/* ---------- utilidades ---------- */
+function brl(v){
+  return "R$ " + v.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+function numero(txt){
+  var v = parseFloat(String(txt).replace(/\./g,"").replace(",","."));
+  return isNaN(v) ? null : v;
+}
+function chaveMes(d){ return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0"); }
+function rotuloMes(k){ var p=k.split("-"); return NOMES[+p[1]-1]+" de "+p[0]; }
+function somaMes(k, n){
+  var p = k.split("-"), d = new Date(+p[0], +p[1]-1+n, 1);
+  return chaveMes(d);
+}
+function $(id){ return document.getElementById(id); }
+function mostrar(id){
+  ["telaSetup","telaAjustes","telaApp"].forEach(function(t){
+    $(t).classList.toggle("oculto", t !== id);
+  });
+}
+
+/* ---------- código de restauração ---------- */
+function codificar(obj){
+  return "COFRE1" + btoa(unescape(encodeURIComponent(JSON.stringify(obj))));
+}
+function decodificar(txt){
+  // limpa primeiro tudo que não é base64 (espaços, quebras, caracteres invisíveis)
+  var s = String(txt).replace(/[^A-Za-z0-9+/=]/g, "");
+  // só então remove o prefixo, que agora está garantidamente no início
+  s = s.replace(/^COFRE1/i, "");
+  if(!s) throw new Error("vazio");
+  s = s.replace(/=+$/, "");
+  while(s.length % 4 !== 0) s += "=";
+  return JSON.parse(decodeURIComponent(escape(atob(s))));
+}
+
+/* ---------- estado ---------- */
+var conf = ler(K_CONF);
+var L = ler(K_LANC) || [];
+var hoje = new Date();
+var mesAtual = chaveMes(hoje);
+var aberto = false, tipoSel = "saida", meioSel = "pix";
+
+/* ---------- entradas fixas automáticas ---------- */
+function aplicarFixas(){
+  Object.keys(conf.salarios).forEach(function(mes){
+    if(mes > mesAtual) return;
+    if(conf.salarios[mes] > 0 && !L.some(function(l){return l.id==="sal-"+mes;})){
+      L.push({id:"sal-"+mes,mes:mes,data:mes+"-05",tipo:"entrada",meio:"pix",
+        valor:conf.salarios[mes],nota:"Renda do mês",previsto:true});
+    }
+    if(conf.fixa > 0 && !L.some(function(l){return l.id==="fix-"+mes;})){
+      L.push({id:"fix-"+mes,mes:mes,data:mes+"-05",tipo:"entrada",meio:"pix",
+        valor:conf.fixa,nota:"Entrada fixa",previsto:true});
+    }
+  });
+  gravar(K_LANC, L);
+}
+
+/* ---------- ações ---------- */
+function lancar(){
+  var v = numero($("valor").value);
+  if(!v || v <= 0) return;
+  var nota = tipoSel==="entrada" ? "Entrada por Pix"
+           : meioSel==="credito" ? "Compra no crédito" : "Saída por Pix";
+  var novo = {
+    id:"l-"+Date.now(), mes:mesAtual, data:hoje.toISOString().slice(0,10),
+    tipo:tipoSel, meio:meioSel, valor:v, nota:nota, previsto:false
+  };
+  if(tipoSel==="saida" && meioSel==="credito") novo.faturaPaga = false;
+  L.push(novo);
+  $("valor").value = "";
+  gravar(K_LANC, L); render();
+}
+function confirmar(id){
+  L = L.map(function(l){ return l.id===id ? Object.assign({},l,{previsto:false}) : l; });
+  gravar(K_LANC, L); render();
+}
+function apagar(id){
+  L = L.filter(function(l){return l.id!==id;});
+  gravar(K_LANC, L); render();
+}
+function pagarFatura(){
+  var abertas = L.filter(function(l){
+    return l.meio==="credito" && l.tipo==="saida" && !l.faturaPaga;
+  });
+  if(!abertas.length) return;
+  var total = abertas.reduce(function(s,l){return s+l.valor;},0);
+  if(!confirm("Pagar "+brl(total)+" da fatura? Esse valor sai do que está guardado.")) return;
+  L = L.map(function(l){
+    return (l.meio==="credito" && l.tipo==="saida" && !l.faturaPaga)
+      ? Object.assign({},l,{faturaPaga:true}) : l;
+  });
+  gravar(K_LANC, L); render();
+}
+
+/* ---------- render ---------- */
+function render(){
+  var saldo = L.reduce(function(s,l){
+    if(l.previsto) return s;
+    if(l.tipo==="entrada") return s + l.valor;
+    if(l.meio==="credito") return l.faturaPaga ? s - l.valor : s;
+    return s - l.valor;
+  }, conf.saldoBase);
+
+  var abertas = L.filter(function(l){
+    return l.meio==="credito" && l.tipo==="saida" && !l.faturaPaga;
+  });
+  var fatura = abertas.reduce(function(s,l){return s+l.valor;},0);
+  var prev = L.filter(function(l){return l.previsto;});
+
+  $("saldo").textContent = brl(saldo);
+  $("legenda").textContent = "sobra " + brl(saldo - fatura) + " depois de pagar a fatura";
+
+  var hp = "";
+  prev.sort(function(a,b){return a.data < b.data ? -1 : 1;}).forEach(function(l){
+    hp += '<div class="item"><div><p class="nota">'+l.nota+'</p>'+
+      '<p class="data">'+rotuloMes(l.mes)+'</p></div><div class="dir">'+
+      '<span class="val" style="color:var(--verde)">+'+brl(l.valor).replace("R$ ","")+'</span>'+
+      '<button class="mini" data-ok="'+l.id+'">recebi</button></div></div>';
+  });
+  $("previstos").innerHTML = hp || '<p class="vazio">Nada previsto no momento.</p>';
+
+  var prox = Object.keys(conf.salarios).filter(function(m){return m>mesAtual;}).sort()[0];
+  $("proximoMes").textContent = prox
+    ? "Em " + rotuloMes(prox) + " entram " + brl(conf.salarios[prox] + conf.fixa) + " automaticamente aqui."
+    : "Sem meses futuros cadastrados.";
+
+  $("fatura").textContent = brl(fatura);
+  $("qtdCompras").textContent = abertas.length
+    ? abertas.length + (abertas.length===1?" compra":" compras") : "";
+  $("dicaFatura").textContent = fatura > 0
+    ? "Sai do que está guardado quando você pagar." : "Fatura zerada. Nada a pagar.";
+  $("pagarFatura").style.display = fatura > 0 ? "block" : "none";
+
+  var gasto = L.filter(function(l){
+    return l.mes===mesAtual && l.tipo==="saida";
+  }).reduce(function(s,l){return s+l.valor;},0);
+  var estouro = gasto - conf.teto;
+  $("rotuloTeto").textContent = "Teto de "+NOMES[hoje.getMonth()];
+  $("numTeto").innerHTML = brl(gasto)+"<span> / "+brl(conf.teto)+"</span>";
+  $("numTeto").style.color = estouro>0 ? "var(--coral)" : "var(--tinta)";
+  var fill = $("fill");
+  fill.style.width = Math.min((gasto/conf.teto)*100,100)+"%";
+  fill.style.background = estouro>0 ? "var(--coral)" : "var(--verde)";
+  $("aviso").textContent = estouro>0
+    ? "Você passou "+brl(estouro)+" do teto."
+    : "Ainda cabem "+brl(-estouro)+" até o limite.";
+  $("aviso").style.color = estouro>0 ? "var(--coral)" : "var(--suave)";
+
+  $("rotuloLanc").textContent = "Lançamentos de "+NOMES[hoje.getMonth()];
+  var doMes = L.filter(function(l){return l.mes===mesAtual && !l.previsto;})
+    .sort(function(a,b){return a.id < b.id ? 1 : -1;});
+  var li = doMes.length ? "" : '<p class="vazio">Nada lançado ainda este mês.</p>';
+  doMes.forEach(function(l){
+    var d = l.data.split("-");
+    var etq = l.meio==="credito" ? "crédito" : "pix";
+    if(l.meio==="credito" && l.faturaPaga) etq += " · paga";
+    li += '<div class="item"><div><p class="nota">'+l.nota+'</p>'+
+      '<p class="data">'+d[2]+"/"+d[1]+" · "+etq+'</p></div><div class="dir">'+
+      '<span class="val" style="color:'+(l.tipo==="entrada"?"var(--verde)":"var(--coral)")+'">'+
+      (l.tipo==="entrada"?"+":"−")+brl(l.valor).replace("R$ ","")+'</span>'+
+      '<button class="mini x" data-del="'+l.id+'">×</button></div></div>';
+  });
+  $("lista").innerHTML = li;
+  $("lista").classList.toggle("oculto", !aberto);
+  $("seta").textContent = aberto ? "−" : "+";
+
+  var restaTeto = Math.max(0, conf.teto - gasto);
+  var acc = saldo - fatura - restaTeto + prev
+    .filter(function(l){return l.mes<=mesAtual;})
+    .reduce(function(s,l){return s+l.valor;},0);
+  var hj = "";
+  Object.keys(conf.salarios).filter(function(m){return m>mesAtual;}).sort().forEach(function(m){
+    acc = acc + conf.salarios[m] + conf.fixa - conf.teto;
+    hj += '<div class="proj"><span class="m">'+rotuloMes(m)+
+          '</span><span class="v">'+brl(acc)+'</span></div>';
+  });
+  $("projecao").innerHTML = hj || '<p class="vazio">Sem meses futuros cadastrados.</p>';
+}
+
+/* ---------- seletores de lançamento ---------- */
+function atualizaSeletores(){
+  $("tSaida").classList.toggle("on", tipoSel==="saida");
+  $("tEntrada").classList.toggle("on", tipoSel==="entrada");
+  var bc = $("mCredito");
+  bc.disabled = (tipoSel==="entrada");
+  if(tipoSel==="entrada") meioSel = "pix";
+  $("mPix").classList.toggle("on", meioSel==="pix");
+  bc.classList.toggle("on", meioSel==="credito");
+  $("dicaLanc").textContent =
+    tipoSel==="entrada" ? "Entra direto no que está guardado."
+    : meioSel==="credito" ? "Vai para a fatura. Só sai quando você pagar."
+    : "Sai na hora.";
+}
+
+/* ---------- setup ---------- */
+function criarDoZero(){
+  var saldo = numero($("cSaldo").value);
+  var teto  = numero($("cTeto").value);
+  var fixa  = numero($("cFixa").value) || 0;
+  var renda = numero($("cRenda").value) || 0;
+  if(saldo === null || teto === null || teto <= 0){
+    $("erroNovo").textContent = "Preencha o valor guardado e um teto maior que zero.";
+    $("erroNovo").classList.remove("oculto");
+    return;
+  }
+  var sal = {};
+  for(var i=0; i<12; i++) sal[somaMes(mesAtual, i)] = renda;
+  conf = { saldoBase:saldo, teto:teto, fixa:fixa, salarios:sal };
+  L = [];
+  gravar(K_CONF, conf); gravar(K_LANC, L);
+  iniciar();
+}
+function restaurar(){
+  try{
+    var d = decodificar($("cImport").value);
+    if(!d.config || !d.config.salarios) throw new Error("conteudo");
+    conf = d.config;
+    L = d.lancamentos || [];
+    gravar(K_CONF, conf); gravar(K_LANC, L);
+    iniciar();
+  }catch(e){
+    $("erroCodigo").textContent = "Código inválido. Confira se copiou inteiro.";
+    $("erroCodigo").classList.remove("oculto");
+  }
+}
+
+/* ---------- ajustes ---------- */
+function abrirAjustes(){
+  $("aTeto").value = conf.teto;
+  $("aFixa").value = conf.fixa;
+  $("aExport").value = codificar({config:conf, lancamentos:L});
+  mostrar("telaAjustes");
+}
+function salvarAjustes(){
+  var t = numero($("aTeto").value), f = numero($("aFixa").value);
+  if(t !== null && t > 0) conf.teto = t;
+  if(f !== null && f >= 0) conf.fixa = f;
+  gravar(K_CONF, conf);
+  mostrar("telaApp"); render();
+}
+
+/* ---------- início ---------- */
+function iniciar(){
+  if(!conf || !conf.salarios){ mostrar("telaSetup"); return; }
+  aplicarFixas();
+  atualizaSeletores();
+  render();
+  mostrar("telaApp");
+}
+
+/* ---------- eventos ---------- */
+$("abaNovo").onclick = function(){
+  $("abaNovo").classList.add("on"); $("abaCodigo").classList.remove("on");
+  $("painelNovo").classList.remove("oculto"); $("painelCodigo").classList.add("oculto");
+};
+$("abaCodigo").onclick = function(){
+  $("abaCodigo").classList.add("on"); $("abaNovo").classList.remove("on");
+  $("painelCodigo").classList.remove("oculto"); $("painelNovo").classList.add("oculto");
+};
+$("salvarNovo").onclick = criarDoZero;
+$("salvarCodigo").onclick = restaurar;
+
+$("irAjustes").onclick = abrirAjustes;
+$("voltarAjustes").onclick = function(){ mostrar("telaApp"); };
+$("salvarAjustes").onclick = salvarAjustes;
+$("copiarCodigo").onclick = function(){
+  var t = $("aExport"); t.select(); t.setSelectionRange(0, 99999);
+  try{ document.execCommand("copy"); $("copiarCodigo").textContent = "Copiado"; }catch(e){}
+};
+$("apagarTudo").onclick = function(){
+  if(!confirm("Apagar tudo deste aparelho? Não dá para desfazer.")) return;
+  limpar(); conf = null; L = [];
+  mostrar("telaSetup");
+};
+
+$("tSaida").onclick = function(){ tipoSel="saida"; atualizaSeletores(); };
+$("tEntrada").onclick = function(){ tipoSel="entrada"; atualizaSeletores(); };
+$("mPix").onclick = function(){ meioSel="pix"; atualizaSeletores(); };
+$("mCredito").onclick = function(){
+  if(tipoSel==="entrada") return; meioSel="credito"; atualizaSeletores();
+};
+$("lancar").onclick = lancar;
+$("pagarFatura").onclick = pagarFatura;
+$("toggle").onclick = function(){ aberto = !aberto; render(); };
+$("previstos").addEventListener("click", function(e){
+  if(e.target.dataset.ok) confirmar(e.target.dataset.ok);
+});
+$("lista").addEventListener("click", function(e){
+  if(e.target.dataset.del) apagar(e.target.dataset.del);
+});
+$("valor").addEventListener("input", function(e){
+  e.target.value = e.target.value.replace(/[^0-9.,]/g,"");
+});
+$("valor").addEventListener("keydown", function(e){
+  if(e.key === "Enter") lancar();
+});
+
+iniciar();
+
+if("serviceWorker" in navigator){
+  window.addEventListener("load", function(){
+    navigator.serviceWorker.register("sw.js").catch(function(){});
+  });
+}
+</script>
+</body>
+</html>
