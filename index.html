@@ -159,6 +159,14 @@
   </div>
 
   <div class="cartao form">
+    <p class="olho">Restaurar de um código</p>
+    <p class="sub">Substitui tudo que está neste aparelho pelo conteúdo do código.</p>
+    <textarea id="aImport" placeholder="COFRE1..."></textarea>
+    <button class="principal" id="aRestaurar" style="margin-top:10px">Restaurar</button>
+    <p class="erro oculto" id="aErro"></p>
+  </div>
+
+  <div class="cartao form">
     <p class="olho">Apagar tudo</p>
     <p class="sub">Remove todos os lançamentos e configurações deste aparelho.</p>
     <button class="paga" id="apagarTudo" style="margin-top:4px">Apagar meu cofre</button>
@@ -348,6 +356,12 @@ function confirmar(id){
   gravar(K_LANC, L); render();
 }
 function apagar(id){
+  var alvo = L.filter(function(l){return l.id===id;})[0];
+  if(alvo && alvo.meio==="credito" && alvo.tipo==="saida" && !alvo.faturaPaga){
+    if(!confirm("Isso apaga a compra de "+brl(alvo.valor)+" sem tirar o dinheiro do saldo.\n\n"+
+                "Se você pagou a fatura, cancele e use o botão \"Paguei a fatura\".\n\n"+
+                "Apagar mesmo assim?")) return;
+  }
   L = L.filter(function(l){return l.id!==id;});
   gravar(K_LANC, L); render();
 }
@@ -539,6 +553,22 @@ $("salvarAjustes").onclick = salvarAjustes;
 $("copiarCodigo").onclick = function(){
   var t = $("aExport"); t.select(); t.setSelectionRange(0, 99999);
   try{ document.execCommand("copy"); $("copiarCodigo").textContent = "Copiado"; }catch(e){}
+};
+$("aRestaurar").onclick = function(){
+  try{
+    var d = decodificar($("aImport").value);
+    if(!d.config || !d.config.salarios) throw new Error("conteudo");
+    if(!confirm("Substituir tudo que está neste aparelho?")) return;
+    conf = d.config;
+    L = d.lancamentos || [];
+    gravar(K_CONF, conf); gravar(K_LANC, L);
+    $("aErro").classList.add("oculto");
+    $("aImport").value = "";
+    iniciar();
+  }catch(e){
+    $("aErro").textContent = "Código inválido. Confira se copiou inteiro.";
+    $("aErro").classList.remove("oculto");
+  }
 };
 $("apagarTudo").onclick = function(){
   if(!confirm("Apagar tudo deste aparelho? Não dá para desfazer.")) return;
